@@ -21,19 +21,21 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
-        # تحديد إصدار Cython لتجنب مشاكل الترجمة الخفية
-        pip install --upgrade buildozer Cython==0.29.33 virtualenv
+        pip install --upgrade buildozer cython virtualenv
 
-    - name: Run Buildozer to create APK
+    - name: Configure and Build APK
       run: |
         buildozer init
-        # إضافة المكتبات
+        # 1. إضافة المكتبات (pillow للصور، plyer للملفات)
         sed -i 's/requirements = python3,kivy/requirements = python3,kivy,pillow,plyer/g' buildozer.spec
-        # إضافة الصلاحيات
-        sed -i 's/# android.permissions = INTERNET/android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE/g' buildozer.spec
-        # الموافقة على التراخيص بطريقة آمنة
-        echo "android.accept_sdk_license = True" >> buildozer.spec
-        # بناء التطبيق
+        
+        # 2. تفعيل الصلاحيات (الدخول لملفات الهاتف)
+        sed -i 's/.*android.permissions = .*/android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE/g' buildozer.spec
+        
+        # 3. الموافقة الإجبارية على تراخيص جوجل (الحل الجذري للمشكلة)
+        sed -i 's/.*android.accept_sdk_license = .*/android.accept_sdk_license = True/g' buildozer.spec
+        
+        # 4. بدء البناء
         buildozer android debug
 
     - name: Upload APK
