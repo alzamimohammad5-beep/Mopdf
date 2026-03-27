@@ -20,56 +20,35 @@ jobs:
     - name: Install System Dependencies
       run: |
         sudo apt update
-        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip \
-        autoconf libtool pkg-config zlib1g-dev libncurses5-dev \
-        libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+        # هنا أضفنا مكتبات الصور الأساسية لحل مشكلة الـ 8 دقائق
+        sudo apt install -y build-essential git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev libjpeg-dev libltdl-dev
+        pip install --upgrade pip
+        pip install buildozer cython==0.29.33 virtualenv wheel
 
-        python3 -m pip install --upgrade pip
-        pip3 install buildozer cython virtualenv
-
-    - name: Set Environment Variables (حل مشاكل kivy)
+    - name: Initialize and Configure Buildozer perfectly
       run: |
-        echo "KIVY_NO_ARGS=1" >> $GITHUB_ENV
-        echo "KIVY_GL_BACKEND=mock" >> $GITHUB_ENV
+        yes | buildozer init
+        # هذا سكربت بايثون جراحي لتعديل الملف بدون أي أخطاء أو تشوه
+        cat << 'EOF' > setup_spec.py
+        import re
+        with open('buildozer.spec', 'r') as f:
+            data = f.read()
+        
+        data = re.sub(r'^requirements =.*', 'requirements = python3,kivy,pillow,plyer', data, flags=re.MULTILINE)
+        data = re.sub(r'^#? *android\.permissions =.*', 'android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE', data, flags=re.MULTILINE)
+        data = re.sub(r'^#? *android\.accept_sdk_license =.*', 'android.accept_sdk_license = True', data, flags=re.MULTILINE)
+        
+        with open('buildozer.spec', 'w') as f:
+            f.write(data)
+        EOF
+        python3 setup_spec.py
 
-    - name: Create buildozer.spec
-      run: |
-        cat <<EOF > buildozer.spec
-[app]
-title = ImageToPdf
-package.name = img2pdf
-package.domain = org.mohammad
-source.dir = .
-source.include_exts = py,png,jpg,jpeg
-version = 1.0
-
-requirements = python3,kivy==2.1.0,pillow,plyer
-
-orientation = portrait
-fullscreen = 0
-
-android.permissions = INTERNET,READ_EXTERNAL_STORAGE
-
-android.api = 33
-android.minapi = 21
-android.sdk = 33
-android.ndk = 25b
-android.arch = arm64-v8a
-
-android.accept_sdk_license = True
-
-[buildozer]
-log_level = 2
-warn_on_root = 1
-EOF
-
-    - name: Build APK
-      run: |
-        buildozer android clean
-        buildozer -v android debug
+    - name: Build APK (with verbose logging)
+      run: yes | buildozer -v android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: Image-To-Pdf-App
         path: bin/*.apk
+        
