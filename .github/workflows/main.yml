@@ -12,28 +12,6 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Install System Dependencies
-      run: |
-        sudo apt update
-        # تمت إضافة libjpeg-dev و build-essential لضمان عمل مكتبة الصور
-        sudo apt install -y build-essential git zip unzip openjdk-17-jdk python3-pip \
-        autoconf libtool pkg-config zlib1g-dev libncurses5-dev \
-        libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev libjpeg-dev
-
-        python3 -m pip install --upgrade pip
-        # تم تقييد إصدار Cython ليتوافق مع Kivy 2.1.0 ويمنع الانهيار
-        pip3 install buildozer Cython==0.29.33 virtualenv
-
-    - name: Set Environment Variables (حل مشاكل Kivy)
-      run: |
-        echo "KIVY_NO_ARGS=1" >> $GITHUB_ENV
-        echo "KIVY_GL_BACKEND=mock" >> $GITHUB_ENV
-
     - name: Create buildozer.spec
       run: |
         cat <<EOF > buildozer.spec
@@ -44,32 +22,24 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,jpeg
         version = 1.0
-        
         requirements = python3,kivy==2.1.0,pillow,plyer
-        
         orientation = portrait
         fullscreen = 0
-        
-        # تمت إضافة صلاحية الكتابة ليتمكن التطبيق من حفظ ملف الـ PDF
         android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
-        
         android.api = 33
         android.minapi = 21
-        android.sdk = 33
-        android.ndk = 25b
-        android.arch = arm64-v8a
-        
         android.accept_sdk_license = True
-        
         [buildozer]
         log_level = 2
         warn_on_root = 1
         EOF
 
-    - name: Build APK
-      run: |
-        yes | buildozer android clean
-        yes | buildozer -v android debug
+    - name: Build with Official Buildozer Action
+      uses: ArtemSBulgakov/buildozer-action@v1
+      id: buildozer
+      with:
+        command: buildozer android debug
+        buildozer_version: master
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
